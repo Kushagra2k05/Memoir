@@ -29,23 +29,19 @@ export default function LandingPage() {
             Gentle memories that become family heirlooms. Watch a grandparent’s memory unfold into a warm story, then invite the child to add drawings, voice, or a loving response.
           </motion.p>
           <motion.div initial={{ opacity: 0, y: 34 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.85, delay: 0.26 }} className="hero-actions">
-            <Link className="text-action" to="/record">Start the Story →</Link>
-            <button type="button" className="text-action" onClick={() => setDemoOpen(true)}>
+            <Link className="text-action hero-cta" to="/record-memory">Start the Story →</Link>
+            <button type="button" className="text-action hero-secondary" onClick={() => setDemoOpen(true)}>
               Watch Demo →
+            </button>
+            <button
+              type="button"
+              className="text-action hero-secondary"
+              onClick={() => document.getElementById('about')?.scrollIntoView({ behavior: 'smooth' })}
+            >
+              Scroll to About
             </button>
           </motion.div>
         </div>
-
-        <motion.button
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8, delay: 0.35 }}
-          className="scroll-indicator"
-          type="button"
-          onClick={() => document.getElementById('about')?.scrollIntoView({ behavior: 'smooth' })}
-        >
-          Scroll to About
-        </motion.button>
       </section>
 
       <section className="section about-section" id="about">

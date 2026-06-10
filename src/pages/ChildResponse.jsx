@@ -1,28 +1,46 @@
 import { useEffect, useRef, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import useSpeechRecognition from '../hooks/useSpeechRecognition.jsx'
-import { useMemoir } from '../context/MemoirContext.jsx'
+import useAudioRecorder from '../hooks/useAudioRecorder.jsx'
+import { postChildResponse, fetchConversationSuggestions } from '../services/apiClient.js'
+
+function formatTimer(seconds) {
+  const minutes = String(Math.floor(seconds / 60)).padStart(2, '0')
+  const secs = String(seconds % 60).padStart(2, '0')
+  return `${minutes}:${secs}`
+}
+
+function getCanvasData(canvas) {
+  return canvas?.toDataURL('image/png') || null
+}
 
 export default function ChildResponse() {
+  const { storyId } = useParams()
   const navigate = useNavigate()
-  const { addResponse } = useMemoir()
-  const { supported, listening, transcript, start, stop, reset } = useSpeechRecognition()
+  const { recording, supported, timer, audioBlob, levels, start, stop, reset } = useAudioRecorder()
   const [drawingOpen, setDrawingOpen] = useState(false)
   const [heartSelected, setHeartSelected] = useState(false)
   const [questionOpen, setQuestionOpen] = useState(false)
   const [questionText, setQuestionText] = useState('')
   const [voiceNote, setVoiceNote] = useState('')
-  const [voiceRecording, setVoiceRecording] = useState(false)
+  const [suggestions, setSuggestions] = useState([])
+  const [submitting, setSubmitting] = useState(false)
+  const [noteStatus, setNoteStatus] = useState('Record a short voice message or ask a question.')
   const canvasRef = useRef(null)
   const isDrawing = useRef(false)
 
   useEffect(() => {
-    if (!listening && voiceRecording && transcript) {
-      setVoiceNote(transcript)
-      setVoiceRecording(false)
+    async function loadSuggestions() {
+      if (!storyId) return
+      try {
+        const result = await fetchConversationSuggestions({ storyId })
+        setSuggestions(result.questions || [])
+      } catch (error) {
+        console.warn(error)
+      }
     }
-  }, [listening, transcript, voiceRecording])
+    loadSuggestions()
+  }, [storyId])
 
   useEffect(() => {
     const canvas = canvasRef.current
@@ -58,26 +76,44 @@ export default function ChildResponse() {
   }
 
   const handleVoiceClick = () => {
-    if (voiceRecording) {
+    if (!supported) return
+    if (recording) {
       stop()
-      setVoiceRecording(false)
+      setVoiceNote('Voice note recorded.')
       return
     }
     reset()
     start()
-    setVoiceRecording(true)
+    setVoiceNote('Recording voice note...')
   }
 
-  const handleSubmit = () => {
-    addResponse({
-      type: 'child-response',
-      question: questionText,
-      heart: heartSelected,
-      voiceNote,
-      drawing: drawingOpen,
-      submittedAt: new Date().toISOString()
-    })
-    navigate('/family-library')
+  const handleSubmit = async () => {
+    if (!storyId) return
+    setSubmitting(true)
+    try {
+      const drawingDataUrl = drawingOpen ? getCanvasData(canvasRef.current) : null
+      const voiceDataUrl = audioBlob ? await new Promise((resolve) => {
+        const reader = new FileReader()
+        reader.onloadend = () => resolve(reader.result)
+        reader.readAsDataURL(audioBlob)
+      }) : null
+
+      await postChildResponse({
+        storyId,
+        question: questionText,
+        heart: heartSelected,
+        drawingDataUrl,
+        voiceDataUrl,
+        voiceNote: !voiceDataUrl && voiceNote.includes('recorded') ? 'Voice note recorded' : voiceNote,
+      })
+
+      navigate('/family-library')
+    } catch (error) {
+      console.error(error)
+      setNoteStatus('Unable to submit the response. Please try again.')
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   return (
@@ -85,8 +121,8 @@ export default function ChildResponse() {
       <section className="section page-intro">
         <div className="page-header">
           <p className="eyebrow">Child Collaboration</p>
-          <h1>Grandma shared a new story.</h1>
-          <p className="subtext">Help the child respond with a drawing, voice message, question, or heart reaction.</p>
+          <h1>Make the story feel alive with your response.</h1>
+          <p className="subtext">Draw, speak, ask, and react — then save your contribution to the family archive.</p>
         </div>
       </section>
 
@@ -97,7 +133,7 @@ export default function ChildResponse() {
           onClick={() => setDrawingOpen((value) => !value)}
           whileHover={{ scale: 1.02 }}
         >
-          Draw a Picture →
+          {drawingOpen ? 'Hide Drawing' : 'Draw a Picture'} →
         </motion.button>
         <motion.button
           type="button"
@@ -105,7 +141,7 @@ export default function ChildResponse() {
           onClick={handleVoiceClick}
           whileHover={{ scale: 1.02 }}
         >
-          {voiceRecording ? 'Stop Voice Message →' : 'Record Voice Message →'}
+          {recording ? 'Stop Voice Message' : 'Record Voice Message'} →
         </motion.button>
         <motion.button
           type="button"
@@ -113,7 +149,7 @@ export default function ChildResponse() {
           onClick={() => setQuestionOpen((value) => !value)}
           whileHover={{ scale: 1.02 }}
         >
-          Ask a Question →
+          {questionOpen ? 'Hide Question' : 'Ask a Question'} →
         </motion.button>
         <motion.button
           type="button"
@@ -121,7 +157,7 @@ export default function ChildResponse() {
           onClick={() => setHeartSelected((value) => !value)}
           whileHover={{ scale: 1.02 }}
         >
-          {heartSelected ? 'Heart Added ♥' : 'Leave a Heart Reaction →'}
+          {heartSelected ? 'Heart Added ♥' : 'Leave a Heart Reaction'} →
         </motion.button>
       </section>
 
@@ -138,28 +174,57 @@ export default function ChildResponse() {
               onMouseLeave={handleDrawingEnd}
             />
           </div>
-          <p className="subtext">Draw directly on the canvas to create a response that feels like part of the story.</p>
+          <p className="subtext">Use the canvas to add an illustration to the family story.</p>
         </section>
       )}
 
+      <section className="voice-panel">
+        <div className="record-status">
+          <strong>{recording ? 'Listening for your message' : 'Voice message ready'}</strong>
+          <span>{formatTimer(timer)}</span>
+        </div>
+        <div className="audio-waveform" aria-hidden="true">
+          {Array.from({ length: 16 }).map((_, index) => (
+            <span key={index} style={{ transform: `scaleY(${0.3 + (levels[index] || 0) * 1.8})` }} />
+          ))}
+        </div>
+      </section>
+
       {questionOpen && (
         <section className="question-panel">
-          <label htmlFor="question-input">Your question for Grandma</label>
+          <label htmlFor="question-input">Your question for the family member</label>
           <input
             id="question-input"
             type="text"
             value={questionText}
             onChange={(event) => setQuestionText(event.target.value)}
-            placeholder="What would you like to ask?"
+            placeholder="What do you want to ask?"
           />
         </section>
       )}
 
+      {suggestions.length > 0 && (
+        <section className="suggestions-panel">
+          <p className="section-eyebrow">Suggested questions</p>
+          <div className="suggestions-grid">
+            {suggestions.map((item, index) => (
+              <button
+                key={index}
+                type="button"
+                className="text-action suggestion-pill"
+                onClick={() => setQuestionText(item)}
+              >
+                {item}
+              </button>
+            ))}
+          </div>
+        </section>
+      )}
+
       <section className="response-summary">
-        <p className="subtext">Voice note saved: {voiceNote ? 'Yes' : 'No'}</p>
-        <p className="subtext">Heart reaction: {heartSelected ? 'Added' : 'Not added'}</p>
-        <button type="button" className="text-action" onClick={handleSubmit}>
-          Submit Response →
+        <p className="subtext">{noteStatus}</p>
+        <button type="button" className="text-action" onClick={handleSubmit} disabled={submitting}>
+          {submitting ? 'Saving response…' : 'Submit Response →'}
         </button>
       </section>
     </main>

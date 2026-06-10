@@ -1,20 +1,36 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useMemoir } from '../context/MemoirContext.jsx'
 import { motion } from 'framer-motion'
+import { fetchStories } from '../services/apiClient.js'
 
 export default function FamilyLibrary() {
-  const { stories } = useMemoir()
-  const navigate = useNavigate()
+  const [stories, setStories] = useState([])
   const [search, setSearch] = useState('')
   const [sortNewest, setSortNewest] = useState(true)
+  const [loading, setLoading] = useState(true)
+  const navigate = useNavigate()
+
+  useEffect(() => {
+    async function loadStories() {
+      setLoading(true)
+      try {
+        const data = await fetchStories()
+        setStories(data.stories || [])
+      } catch (error) {
+        console.error(error)
+      } finally {
+        setLoading(false)
+      }
+    }
+    loadStories()
+  }, [])
 
   const filteredStories = useMemo(() => {
     return stories
       .filter((story) => story.title.toLowerCase().includes(search.toLowerCase()) || story.snippet.toLowerCase().includes(search.toLowerCase()))
       .sort((first, second) => {
-        const firstDate = new Date(first.date)
-        const secondDate = new Date(second.date)
+        const firstDate = new Date(first.createdAt || first.date || 0)
+        const secondDate = new Date(second.createdAt || second.date || 0)
         return sortNewest ? secondDate - firstDate : firstDate - secondDate
       })
   }, [search, sortNewest, stories])
@@ -43,24 +59,29 @@ export default function FamilyLibrary() {
         </button>
       </div>
 
-      <div className="story-listing">
-        {filteredStories.map((story) => (
-          <motion.article
-            key={story.id}
-            className="story-row"
-            initial={{ opacity: 0, y: 18 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.55 }}
-            onClick={() => navigate(`/family-library/${story.id}`)}
-          >
-            <div>
-              <span className="story-year">{new Date(story.date).getFullYear()}</span>
-              <h2>{story.title}</h2>
-            </div>
-            <p>{story.snippet}</p>
-          </motion.article>
-        ))}
-      </div>
+      {loading ? (
+        <div className="loading-state">Loading stories…</div>
+      ) : (
+        <div className="story-listing">
+          {filteredStories.map((story) => (
+            <motion.article
+              key={story.id}
+              className="story-row"
+              initial={{ opacity: 0, y: 18 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.55 }}
+              onClick={() => navigate(`/family-library/${story.id}`)}
+            >
+              <div>
+                <span className="story-year">{new Date(story.createdAt || story.date || Date.now()).getFullYear()}</span>
+                <h2>{story.title}</h2>
+              </div>
+              <p>{story.snippet}</p>
+            </motion.article>
+          ))}
+          {!filteredStories.length && <div className="empty-state">No stories match your search.</div>}
+        </div>
+      )}
     </section>
   )
 }

@@ -1,14 +1,39 @@
-import { useMemo } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { useMemoir } from '../context/MemoirContext.jsx'
 import { motion } from 'framer-motion'
+import { fetchStory } from '../services/apiClient.js'
 
 export default function StoryDetailPage() {
   const { storyId } = useParams()
-  const { stories } = useMemoir()
   const navigate = useNavigate()
+  const [story, setStory] = useState(null)
+  const [loading, setLoading] = useState(true)
 
-  const story = useMemo(() => stories.find((item) => item.id === storyId), [storyId, stories])
+  useEffect(() => {
+    async function loadStory() {
+      try {
+        const response = await fetchStory(storyId)
+        setStory(response.story)
+      } catch (error) {
+        console.error(error)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    loadStory()
+  }, [storyId])
+
+  if (loading) {
+    return (
+      <section className="story-detail-page">
+        <div className="page-header">
+          <p className="eyebrow">Story loading</p>
+          <h1>Loading your story details.</h1>
+        </div>
+      </section>
+    )
+  }
 
   if (!story) {
     return (
@@ -34,14 +59,14 @@ export default function StoryDetailPage() {
 
       <div className="story-detail-content">
         <div className="story-detail-meta">
-          <span>{new Date(story.date).toLocaleDateString(undefined, { month: 'long', year: 'numeric' })}</span>
-          <span>{story.pages.length} story pages</span>
+          <span>{new Date(story.createdAt || story.date).toLocaleDateString(undefined, { month: 'long', year: 'numeric' })}</span>
+          <span>{story.pages?.length || 0} story pages</span>
         </div>
 
         <div className="story-detail-pages">
-          {story.pages.map((page, index) => (
+          {story.pages?.map((page, index) => (
             <motion.article
-              key={page.title}
+              key={`${page.title}-${index}`}
               className="story-detail-card"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}

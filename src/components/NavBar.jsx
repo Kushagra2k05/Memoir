@@ -1,11 +1,33 @@
 import { useLocation, useNavigate, NavLink, Link } from 'react-router-dom'
 import { navigationLinks } from '../data/storyData.js'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 
 export default function NavBar() {
   const navigate = useNavigate()
   const location = useLocation()
   const [menuOpen, setMenuOpen] = useState(false)
+  const [isHeroVisible, setIsHeroVisible] = useState(false)
+
+  useEffect(() => {
+    const hero = document.querySelector('.hero-section')
+    if (!hero) {
+      setIsHeroVisible(false)
+      return
+    }
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        setIsHeroVisible(entry.isIntersecting)
+      },
+      {
+        rootMargin: '-90px 0px 0px 0px',
+        threshold: 0.1,
+      }
+    )
+
+    observer.observe(hero)
+    return () => observer.disconnect()
+  }, [location.pathname])
 
   const scrollToTarget = (target) => {
     const id = target.replace('#', '')
@@ -30,8 +52,10 @@ export default function NavBar() {
     setMenuOpen(false)
   }
 
+  const headerClass = `navbar ${isHeroVisible ? 'navbar-hero' : 'navbar-light'}`
+
   return (
-    <header className="navbar">
+    <header className={headerClass}>
       <Link className="brand" to="/">
         Memoir
       </Link>
@@ -57,7 +81,7 @@ export default function NavBar() {
           </button>
         ))}
         <NavLink
-          to="/record"
+          to="/record-memory"
           className="nav-link nav-link-cta"
           onClick={() => setMenuOpen(false)}
         >

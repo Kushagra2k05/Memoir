@@ -23,13 +23,13 @@ export default function StorybookViewer({ pages }) {
         </header>
       </motion.div>
       <div className="story-actions">
-        <button className="secondary-button" onClick={prevPage} disabled={current === 0}>
+        <button type="button" className="secondary-button" onClick={prevPage} disabled={current === 0}>
           Previous page
         </button>
-        <button className="secondary-button" onClick={nextPage} disabled={current === pages.length - 1}>
+        <button type="button" className="secondary-button" onClick={nextPage} disabled={current === pages.length - 1}>
           Next page
         </button>
-        <button className="primary-button">Narrate story</button>
+        <button type="button" className="primary-button">Narrate story</button>
       </div>
     </div>
   )

@@ -1,7 +1,8 @@
 export const navigationLinks = [
   { label: 'About', href: '#about', type: 'anchor' },
   { label: 'How It Works', href: '#how', type: 'anchor' },
-  { label: 'Stories', href: '/family-library', type: 'route' }
+  { label: 'Library', href: '/family-library', type: 'route' },
+  { label: 'Legacy', href: '/family-legacy', type: 'route' }
 ]
 
 export const recentMemories = [

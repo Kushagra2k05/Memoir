@@ -10,8 +10,11 @@ import FamilyLibrary from './pages/FamilyLibrary.jsx'
 import CreateStory from './pages/CreateStory.jsx'
 import StoryDetailPage from './pages/StoryDetailPage.jsx'
 import FamilyLegacy from './pages/FamilyLegacy.jsx'
+import { db } from "./firebase";
 
 function App() {
+  console.log("APP LOADED");
+  console.log("Firebase Connected:", db);
   const location = useLocation()
 
   return (
@@ -29,9 +32,10 @@ function App() {
           <Routes location={location}>
             <Route path="/" element={<LandingPage />} />
             <Route path="/record" element={<RecordMemory />} />
+            <Route path="/record-memory" element={<RecordMemory />} />
             <Route path="/generating" element={<StoryGeneration />} />
-            <Route path="/storybook" element={<StorybookPage />} />
-            <Route path="/child-response" element={<ChildResponse />} />
+            <Route path="/storybook/:storyId" element={<StorybookPage />} />
+            <Route path="/child-response/:storyId" element={<ChildResponse />} />
             <Route path="/family-library" element={<FamilyLibrary />} />
             <Route path="/create-story" element={<CreateStory />} />
             <Route path="/family-library/:storyId" element={<StoryDetailPage />} />
